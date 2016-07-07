@@ -6,45 +6,60 @@
 import psycopg2
 import random
 
+class DB():
+    """This class provides a way to connect to the PostgreSQL."""
+
+    def __init__(self, db_con_str="dbname=tournament"):
+        """
+        Creates a database connection with the connection string provided
+        :param str db_con_str: Contains the database connection string, with a default value when no argument is passed to the parameter
+        """
+        self.conn = psycopg2.connect(db_con_str)
+
+    def cursor(self):
+        """
+        Returns the current cursor of the database
+        """
+        return self.conn.cursor();
+
+    def execute(self, sql_query_string, and_close=False):
+        """
+        Executes SQL queries
+        :param str sql_query_string: Contain the query string to be executed
+        :param bool and_close: If true, closes the database connection after executing and commiting the SQL Query
+        """
+        cursor = self.cursor()
+        cursor.execute(sql_query_string)
+        if and_close:
+            self.conn.commit()
+            self.close()
+        return {"conn": self.conn, "cursor": cursor if not and_close else None}
+
+    def close(self):
+        """
+        Closes the current database connection
+        """
+        return self.conn.close()
 
 def connect():
     """Connect to the PostgreSQL database.  Returns a database connection."""
     return psycopg2.connect("dbname=tournament")
 
-
 def deleteMatches():
     """Remove all the match records from the database."""
-    DB = connect()
-    c = DB.cursor()
-    c.execute("DELETE FROM matches")
-    DB.commit()
-    DB.close()
-
+    DB().execute("DELETE FROM matches", True)
 
 def deletePlayers():
     """Remove all the player records from the database."""
-    DB = connect()
-    c = DB.cursor()
-    c.execute("DELETE FROM players")
-    DB.commit()
-    DB.close()
+    DB().execute("DELETE FROM players", True)
 
 def deleteTournaments():
     """Remove all the tournament records from the database."""
-    DB = connect()
-    c = DB.cursor()
-    c.execute("DELETE FROM tournaments")
-    DB.commit()
-    DB.close()
+    DB().execute("DELETE FROM tournaments", True)
 
-
-def deleteScoreboard():
-    """Remove all the scoreboard records from the database."""
-    DB = connect()
-    c = DB.cursor()
-    c.execute("DELETE FROM scoreboard")
-    DB.commit()
-    DB.close()
+def deleteTregistrations():
+    """Remove all the player-tournament registration records from the database."""
+    DB().execute("DELETE FROM tregistrations", True)
 
 def createTournament(name):
     """Create a new tournament.
@@ -67,8 +82,8 @@ def countPlayers(tid):
     """
     DB = connect()
     c = DB.cursor()
-    sql = """SELECT count(p_id) AS num
-             FROM scoreboard
+    sql = """SELECT count(p_id)
+             FROM tregistrations
              WHERE t_id = %s"""
     c.execute(sql, (tid,))
     players = c.fetchone()[0]
@@ -86,10 +101,10 @@ def registerPlayer(name, tid):
     DB = connect()
     c = DB.cursor()
     player = "INSERT INTO players (p_name) VALUES (%s) RETURNING p_id"
-    scoreboard = "INSERT INTO scoreboard VALUES (%s,%s,%s,%s,%s)"
+    tregistrations = "INSERT INTO tregistrations VALUES (%s,%s,%s)"
     c.execute(player, (name,))
     pid = c.fetchone()[0]
-    c.execute(scoreboard, (tid,pid,0,0,0))
+    c.execute(tregistrations, (tid,pid,0))
     DB.commit()
     DB.close()
 
